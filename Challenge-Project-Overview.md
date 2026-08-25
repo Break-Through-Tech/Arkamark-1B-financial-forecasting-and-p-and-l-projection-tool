@@ -69,39 +69,46 @@ Use these milestones to guide your work. Your team will create a GitHub Projects
 
 ## 🛠️ Suggested Approach
 
-**ML Problem Type:** Regression, NLP, Time Series Analysis, Deep Learning / Neural Networks, Large Language Models (LLMs) / Generative AI
+**ML Problem Type:** Time Series Analysis, Regression *(LLMs/Generative AI applies only if you pursue the executive-summary stretch goal)*
 
-**Recommended Libraries:**
-- pandas, numpy for data wrangling
-- statsmodels (SARIMA/ETS)
-- scikit-learn (regularized regression)
-- XGBoost or LightGBM (gradient-boosted trees)
-- matplotlib/seaborn for visualization
+**Recommended Libraries:** *(all free, all run on Google Colab — no local setup required)*
+
+| Phase | Libraries | What you'll use them for |
+|-------|-----------|---------------------------|
+| Data & EDA | `pandas`, `numpy`, `matplotlib` / `seaborn` | Load and clean both datasets (Favorita sales + the financial-statement data), decompose trend/seasonality, visualize how sales relate to the oil-price driver. |
+| Classical time series | `statsmodels` (SARIMA / ETS) | Build the baseline and classical forecasting models per product family. |
+| ML regression | `scikit-learn` (regularized regression), `XGBoost` or `LightGBM` | Compare gradient-boosted trees and regularized linear models against the classical baseline. |
+| Sales-to-P&L engine | `pandas` | Translate forecasted revenue into COGS, operating expenses, and EBIT using margin benchmarks drawn from Dataset 2. |
+| Evaluation & backtesting | `scikit-learn.model_selection.TimeSeriesSplit`, `matplotlib` | Rolling/expanding-window backtests, error analysis, and computing MAPE/RMSE/MAE. |
+| Stretch (probabilistic / dashboard / LLM) | `scipy.stats`, `streamlit`, an LLM API *(optional)* | Prediction intervals or Monte Carlo simulation, an interactive what-if dashboard, an LLM-generated executive summary. |
+
+> Start simple: `pandas` + `statsmodels` gets you a working SARIMA baseline per product line. Only move to `XGBoost`/`LightGBM` once that baseline is solid, and treat the dashboard/LLM stretch goals as true stretch — they sit on top of an already-working forecast, so they can't put the core result at risk.
 
 **Evaluation Metrics:**
-- MAPE, RMSE, MAE on a held-out backtest window
-- Benchmarked against a seasonal-naive baseline
-
----
+- **MAPE (Mean Absolute Percentage Error)** — the primary metric. Expresses error as a percentage, so it's comparable across product lines with very different sales volumes. Target: under ~10% at the annual level.
+- **RMSE** — penalizes large misses more heavily than MAPE; useful for catching a model that's usually fine but occasionally way off.
+- **MAE** — average absolute error in the same units as sales (e.g., dollars), the most directly interpretable number for explaining results to a non-technical audience.
+- **Seasonal-naive baseline** — the bar every model must beat. It simply predicts "this period will look like the same period last cycle" (e.g., this September = last September). If your model can't beat that, it isn't adding value yet.
 
 ## 📚 Resources to Get Started
 
 The following resources will help your team understand the problem space and potential technical approaches for this project:
 
 **Background Reading:**
-- Financial Statement Analysis Principles (CFA Institute Guidelines)
-- Forecasting: Principles and Practice (Hyndman & Athanasopoulos) — free online
+- [Introduction to Financial Statement Analysis (CFA Institute)](https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/introduction-financial-statement-analysis) — a free primer on reading an income statement, useful before working with the Dataset 2 financials.
+- [Forecasting: Principles and Practice (Hyndman & Athanasopoulos)](https://otexts.com/fpp3/) — the standard free textbook for time-series forecasting; covers SARIMA/ETS directly, the core method this project builds on.
+- [What Is a Good Retail Profit Margin? (NetSuite)](https://www.netsuite.com/portal/resource/articles/accounting/retail-profit-margins.shtml) — real-world COGS/opex/margin benchmarks by retail segment, useful when picking realistic assumptions to convert your sales forecast into a simulated P&L.
 
 **Technical Tutorials:**
-- Statsmodels SARIMAX documentation
-- Scikit-learn Time Series Cross-Validation docs
+- [Statsmodels SARIMAX documentation](https://www.statsmodels.org/stable/generated/statsmodels.tsa.statespace.sarimax.SARIMAX.html) — the official docs for building the classical time-series model.
+- [Scikit-learn TimeSeriesSplit (time series cross-validation)](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html) — how to backtest correctly without leaking future data into training, essential for the MAPE/RMSE backtest requirement.
 
 **Code Examples:**
-- Statsmodels SARIMAX implementation notebooks
-- XGBoost/LightGBM time-series regression tutorials
+- [Kaggle "Store Sales - Time Series Forecasting" competition notebooks](https://www.kaggle.com/competitions/store-sales-time-series-forecasting/code) — real submitted solutions using Dataset 1 (the Favorita sales data), useful for seeing different modeling approaches.
+- [Financial Data of 4400+ Public Companies (Kaggle dataset page)](https://www.kaggle.com/datasets/qks1lver/financial-data-of-4400-public-companies) — includes example notebooks showing how others have explored the income-statement dataset (Dataset 2).
 
 **Other:**
-- Kaggle "Store Sales - Time Series Forecasting" competition notebooks — real fellow-submitted solutions using this exact dataset, useful for seeing different modeling approaches
+- [XGBoost documentation — regression examples](https://xgboost.readthedocs.io/en/stable/python/examples/index.html) — official examples for the gradient-boosted-tree approach, for the ML-regression half of the modeling comparison.
 
 *Feel free to explore beyond these, and share anything interesting you find with me!*
 
