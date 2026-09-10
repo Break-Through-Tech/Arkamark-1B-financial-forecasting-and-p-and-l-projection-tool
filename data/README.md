@@ -1,0 +1,51 @@
+# Data Directory
+
+## How to Get the Data
+
+This project uses two public datasets from Kaggle. **Each team member needs to download them individually.**
+
+### Dataset 1: Corporación Favorita Store Sales
+
+1. Go to: https://www.kaggle.com/competitions/store-sales-time-series-forecasting
+2. Click **"Download All"**
+3. This will download a ZIP file (~500MB)
+4. Unzip it
+5. Move all CSV files to `data/raw/`
+
+You should have files like:
+- `train.csv`
+- `test.csv`
+- `oil.csv`
+- `stores.csv`
+- `holidays_events.csv`
+- `transactions.csv`
+
+### Dataset 2: Financial Data of 4400+ Public Companies
+
+1. Go to: https://www.kaggle.com/datasets/qks1lver/financial-data-of-4400-public-companies
+2. Click **"Download"**
+3. Unzip it
+4. Move the CSV files to `data/raw/`
+
+### Folder Structure After Download
+
+Your `data/raw/` folder should look like this:
+
+data/raw/
+├── train.csv
+├── test.csv
+├── oil.csv
+├── stores.csv
+├── holidays_events.csv
+├── transactions.csv
+└── [financial data CSVs]
+
+
+---
+
+## Important Notes
+
+- **Do NOT commit the CSV files to GitHub** (they're too large)
+- Everyone downloads their own copy locally
+- The `data/raw/` folder is in `.gitignore`, so Git will ignore it
+- Notebooks and cleaned data will be committed, but raw CSVs stay local
