@@ -1,1 +1,6 @@
-
+# Data files - too large to store in GitHub
+data/raw/
+data/processed/
+*.csv
+# Mac system files
+.DS_Store
