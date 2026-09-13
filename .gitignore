@@ -2,7 +2,6 @@
 data/raw/
 *.csv
 !data/processed/financials_clean.csv
-!data/processed/favorita_sales_clean.csv
 
 # Mac system files
 .DS_Store
