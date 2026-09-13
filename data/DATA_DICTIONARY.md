@@ -2,7 +2,28 @@
 
 ## Section 1: Corporación Favorita Sales
 
-_Owned by: Tanzina (sales dataset) — to be filled in once `clean_favorita()` is implemented._
+**Source file:** `data/raw/train.csv`
+**Cleaned output:** `data/processed/favorita_sales_clean.csv` (see `notebooks/02_data_cleaning.py`)
+**Grain:** one row per (date, store, product family)
+**Coverage:** 3,000,888 rows; 54 stores; 33 product families; 2013-01-01 to 2017-08-15
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | int | Unique row identifier (0..N-1, matches row order in the raw file) |
+| `date` | date | Observation date |
+| `store_nbr` | int | Store identifier (1–54) |
+| `family` | string | Product-family category (33 distinct values, e.g. `GROCERY I`, `BEVERAGES`, `BOOKS`) |
+| `sales` | float | Total sales for a product family at a particular store on a particular date. Fractional values are legitimate (15.4% of rows) — this is not a count, and values should not be rounded. |
+| `onpromotion` | int | Number of items in that product family that were being promoted at that store/date. This is a count, not a boolean, and can be 0. |
+| `sales_outlier_flag` | int (0/1) | New column added during cleaning. `1` marks a statistically extreme `sales` value relative to that store+family's own history; `0` otherwise. This is a **statistical extremity marker, not a "bad data" indicator** — flagged rows were not altered or removed, and many correspond to real demand events (see below). |
+
+**Cleaning performed:** essentially none — investigation found this dataset already clean (0 nulls, 0 duplicate rows, 0 duplicate `(date, store_nbr, family)` keys, no negative/non-finite `sales` or `onpromotion` values). `clean_favorita()` converts `date` to datetime, asserts these invariants hold, computes `sales_outlier_flag`, and writes the result unchanged otherwise. No rows were added, removed, or modified.
+
+**`sales_outlier_flag` method:** computed per `(store_nbr, family)` group, on `log1p(sales)`, flagging values above that group's own 99.5th percentile. Store+family grain was chosen because sales scale varies enormously across families (e.g. `GROCERY I` vs `BOOKS`) and stores; `log1p` tames the heavy right skew in raw sales (skew ≈7.4 → ≈0.4 after transform); a percentile threshold (rather than IQR/MAD) avoids degenerate zero-width fences on the many zero-heavy or zero-only store/family series. 14,225 rows (0.47%) are flagged. Flagged rows cluster around explainable real-world events — e.g. the April 2016 Ecuador earthquake relief-buying surge and month-start payday cycles — not data errors, which is why they are flagged rather than removed.
+
+**Zero-sales rows (31.3% of the dataset):** legitimate, not missing data. 53 `(store, family)` combinations are 100% zero across their entire history (e.g., a store that never carries "BOOKS"). A zero-sales row means the observation was recorded and nothing sold that day, which is different from an absent row.
+
+**Missing dates:** the panel is a perfectly dense grid (54 stores × 33 families × 1,684 dates = exact row count) except for 4 globally-missing dates: December 25 of 2013, 2014, 2015, and 2016. These are structural Ecuador retail closures (stores are closed on Christmas Day), not missing observations, and were not filled in or otherwise interpolated.
 
 ## Section 2: Financial Data of 4400+ Public Companies
 
