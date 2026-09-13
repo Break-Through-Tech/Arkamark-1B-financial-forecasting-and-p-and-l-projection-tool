@@ -17,6 +17,12 @@ def load_favorita():
         print(df.head())
         print(f"\nSummary statistics:")
         print(df.describe())
+        
+        favorita_dates = pd.to_datetime(df['date'])
+        print(f"\nDate range: {favorita_dates.min().date()} to {favorita_dates.max().date()}")
+        print(f"Unique stores: {df['store_nbr'].nunique()}")
+        print(f"Unique product families: {df['family'].nunique()}")
+        
         return df
     except FileNotFoundError:
         print("Sales data file not found. Check data/raw/ for the correct filename")
