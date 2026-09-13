@@ -9,7 +9,7 @@
 | Name             | GitHub Handle | Contribution                                                             |
 |------------------|---------------|--------------------------------------------------------------------------|
 | Tanzina Sumona   | @TanzinaS     | Data Exploration|
-| Karen Hernandez   | @____________| Data Exploration|
+| Karen Hernandez   | @Karen-H72 | Data Exploration|
 | Sri Lakshmi Anbarasan   | @srilakshmi-anbarasan| Data Exploration |
 | Carlin Verano   | @carlinnv      | Data Exploration  |
 | Moyinoluwa Ogunjobi   | @moyin-oa   | Data Exploration|
