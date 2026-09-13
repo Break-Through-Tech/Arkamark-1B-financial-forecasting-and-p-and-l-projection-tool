@@ -17,6 +17,11 @@ print(df_favorita.head())
 print(f"\nSummary statistics:")
 print(df_favorita.describe())
 
+favorita_dates = pd.to_datetime(df_favorita['date'])
+print(f"\nDate range: {favorita_dates.min().date()} to {favorita_dates.max().date()}")
+print(f"Unique stores: {df_favorita['store_nbr'].nunique()}")
+print(f"Unique product families: {df_favorita['family'].nunique()}")
+
 # Load Financial data
 print(f"\n{'='*50}")
 print("FINANCIAL DATA")
