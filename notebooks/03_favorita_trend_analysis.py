@@ -7,6 +7,7 @@ import os
 PROCESSED_PATH = 'data/processed/favorita_sales_clean.csv'
 FIGURES_DIR = 'figures/trend'
 FINDINGS_PATH = 'docs/eda_findings_favorita.md'
+FAMILY_DAILY_CSV_PATH = 'data/processed/favorita_family_daily_sales.csv'
 
 ROLLING_SHORT = 7   # weekly smoothing, kills day-of-week noise
 ROLLING_LONG = 28   # ~monthly smoothing, primary trend line
@@ -292,6 +293,16 @@ if __name__ == "__main__":
 
     findings = compute_findings(family_series)
     write_findings(findings, family_series)
+
+    # Export family-level daily sales for downstream tasks. Reuses the
+    # family_series already loaded above instead of reading the CSV again.
+    family_daily_long = family_series.reset_index().melt(
+        id_vars='date',
+        var_name='family',
+        value_name='sales'
+    )
+    family_daily_long.to_csv(FAMILY_DAILY_CSV_PATH, index=False)
+    print(f"Saved family-level daily sales to {FAMILY_DAILY_CSV_PATH}")
 
     print(f"\n{'='*50}")
     print("SUMMARY")
