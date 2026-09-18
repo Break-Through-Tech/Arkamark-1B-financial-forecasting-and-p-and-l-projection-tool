@@ -1,6 +1,5 @@
 import math
 import pandas as pd
-import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import os
 
@@ -312,3 +311,153 @@ if __name__ == "__main__":
     print(f"Trending down: {(findings['trend_label'] == 'down').sum()}")
     print(f"Stable: {(findings['trend_label'] == 'stable').sum()}")
     print(f"Sparse (>{int(SPARSE_THRESHOLD*100)}% zero days): {findings['is_sparse'].sum()}")
+
+
+
+import matplotlib.pyplot as plt
+import re 
+
+PROCESSED_PATH = 'data/processed/financials_clean.csv'
+FIGURES_DIR = 'data/processed/figures/margins'
+STOCK_MARGIN_CSV_PATH = 'data/processed/financials_margin_by_stock_year.csv'
+
+# Equations of each Margin related to its revenue.
+MARGIN_DEFINITIONS = {
+    'grossMargin': ('grossProfit', 'totalRevenue'),
+    'operatingMargin': ('operatingIncome', 'totalRevenue'),
+    'netMargin': ('netIncome', 'totalRevenue'),
+}
+
+# The Operating Margin allows us to evaluate annual metrics for the Top 30 companies.
+# 0.05 was used as Trend Threshold because it is a common middle ground and prone 
+# to less noise.
+# 0.20 was used as Loss Threshold because of the gap between companies with constant 
+# reveneue and identifies a chronic loss pattern of company.
+# Chose the Top 30 companies because its a general metric to give us an overview 
+# of the data.
+PRIMARY_MARGIN = 'operatingMargin'
+TREND_THRESHOLD_PP = 0.05
+LOSS_THRESHOLD = 0.20
+EDGE_YEARS = 2
+TOP_N_STOCKS = 30
+
+# Calculated the Margin values and found the Top 30 companies.
+# Used totalRevenue to determine these metrics.
+def load_stock_series():
+    df = pd.read_csv(PROCESSED_PATH, parse_dates=['endDate'])
+    df['year'] = df['endDate'].dt.year
+    for margin_name, (numerator, denominator) in MARGIN_DEFINITIONS.items():
+        df[margin_name] = df[numerator] / df[denominator]
+    top_stocks = (
+        df.groupby('stock')['totalRevenue']
+        .mean()
+        .sort_values(ascending=False)
+        .head(TOP_N_STOCKS)
+        .index
+    )
+    df = df[df['stock'].isin(top_stocks)]
+    return {
+        margin_name: df.pivot_table(index='year', columns='stock', values=margin_name)
+        .reindex(columns=top_stocks)
+        for margin_name in MARGIN_DEFINITIONS
+    }
+
+# Identify and converts the company name into a test string for our evaluation.
+def safe_filename(stock_name):
+    filename = re.sub(r'[^A-Za-z0-9_.-]+', '_', str(stock_name)).strip(' ._')
+    return filename or 'unknown_stock'
+
+# To avoid any confusion, two images were identified:
+# The first one is an general overview of the Operating Margin for Top 30.
+# The second one is the individual results of the Top 30 companies. 
+def plot_overview(margin_series):
+    stocks = margin_series[PRIMARY_MARGIN].columns.tolist()
+    n_cols = 5
+    n_rows = math.ceil(len(stocks) / n_cols)
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols * 4, n_rows * 2.5), sharex=True)
+    axes = axes.flatten()
+    colors = {'grossMargin': 'tab:orange', 'operatingMargin': 'tab:blue', 'netMargin': 'tab:green'}
+    for ax, stock in zip(axes, stocks):
+        for margin_name, color in colors.items():
+            series = margin_series[margin_name][stock].dropna()
+            ax.plot(series.index, series.values, color=color, linewidth=1.0, label=margin_name)
+        ax.set_title(str(stock), fontsize=8)
+        ax.tick_params(axis='both', labelsize=6)
+    for ax in axes[len(stocks):]:
+        ax.set_visible(False)
+    axes[0].legend(loc='upper left', fontsize=6)
+    fig.suptitle(f'Top {len(stocks)} Companies by Revenue - Margins Over Time', fontsize=12)
+    fig.supxlabel('Fiscal Year')
+    fig.supylabel('Margin (fraction of revenue)')
+    fig.tight_layout(rect=[0, 0, 1, 0.97])
+    os.makedirs(FIGURES_DIR, exist_ok=True)
+    output_path = os.path.join(FIGURES_DIR, 'overview.png')
+    fig.savefig(output_path, dpi=150)
+    plt.close(fig)
+    print(f'Saved overview figure to {output_path}')
+
+
+def plot_per_stock(margin_series):
+    os.makedirs(FIGURES_DIR, exist_ok=True)
+    stocks = margin_series[PRIMARY_MARGIN].columns.tolist()
+    colors = {'grossMargin': 'tab:orange', 'operatingMargin': 'tab:blue', 'netMargin': 'tab:green'}
+    for stock in stocks:
+        fig, ax = plt.subplots(figsize=(10, 4))
+        for margin_name, color in colors.items():
+            series = margin_series[margin_name][stock].dropna()
+            ax.plot(series.index, series.values, color=color, linewidth=1.5, marker='o', markersize=3, label=margin_name)
+        ax.axhline(0, color='gray', linewidth=1)
+        ax.set_title(f'Margins Over Time - {stock}')
+        ax.set_xlabel('Fiscal Year')
+        ax.set_ylabel('Margin (fraction of revenue)')
+        ax.legend(loc='upper left', fontsize=8)
+        fig.tight_layout()
+        output_path = os.path.join(FIGURES_DIR, f'stock_{safe_filename(stock)}.png')
+        fig.savefig(output_path, dpi=150)
+        plt.close(fig)
+    print(f'Saved {len(stocks)} per-stock figures to {FIGURES_DIR}/')
+
+# General Summary of the changes done to the Top 30 company's margin. 
+def compute_findings(margin_series):
+    primary = margin_series[PRIMARY_MARGIN]
+    rows = []
+    for stock in primary.columns:
+        series = primary[stock].dropna()
+        if len(series) == 0:
+            continue
+        first_avg = series.iloc[:EDGE_YEARS].mean()
+        last_avg = series.iloc[-EDGE_YEARS:].mean()
+        pp_change = last_avg - first_avg
+        trend_label = 'up' if pp_change >= TREND_THRESHOLD_PP else 'down' if pp_change <= -TREND_THRESHOLD_PP else 'stable'
+        
+        pct_loss_years = (series < 0).mean()
+        
+        rows.append({
+            'stock': stock,
+            'first_2yr_avg': first_avg,
+            'last_2yr_avg': last_avg,
+            'pp_change': pp_change,
+            'trend_label': trend_label,
+            'pct_loss_years': pct_loss_years,
+            'is_loss_prone': pct_loss_years > LOSS_THRESHOLD,
+        })
+    return pd.DataFrame(rows).set_index('stock')
+
+
+print(f"\n{'=' * 50}")
+print('FINANCIALS MARGIN TREND ANALYSIS')
+print(f"{'=' * 50}")
+margin_series = load_stock_series()
+print(f"Loaded {margin_series[PRIMARY_MARGIN].shape[1]} companies over {margin_series[PRIMARY_MARGIN].shape[0]} fiscal years")
+plot_overview(margin_series)
+plot_per_stock(margin_series)
+findings = compute_findings(margin_series)
+print(f"\n{'=' * 50}")
+print('SUMMARY')
+print(f"{'=' * 50}")
+print(findings[['trend_label', 'pp_change', 'pct_loss_years', 'is_loss_prone']])
+print(f"\nTrending up: {(findings['trend_label'] == 'up').sum()}")
+print(f"Trending down: {(findings['trend_label'] == 'down').sum()}")
+print(f"Stable: {(findings['trend_label'] == 'stable').sum()}")
+findings.to_csv(STOCK_MARGIN_CSV_PATH)
+print(f'Saved findings to {STOCK_MARGIN_CSV_PATH}')
