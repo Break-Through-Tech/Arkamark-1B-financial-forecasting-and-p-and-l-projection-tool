@@ -8,6 +8,7 @@ INPUT_CSV = 'data/processed/favorita_family_daily_sales.csv'
 FIGURES_DIR = 'figures/decomposition'
 FINDINGS_PATH = 'docs/eda_findings_favorita.md'
 SUMMARY_CSV_PATH = 'data/processed/favorita_seasonality_summary.csv'
+SECTION_HEADING = '## Time-Series Decomposition (`04_favorita_decomposition.py`)'
 
 PERIOD = 7                    # weekly seasonality
 ZERO_SALES_THRESHOLD = 0.10   # flag families with >10% zero-sales days
@@ -128,8 +129,9 @@ def compute_results(family_series):
 
 
 def write_findings(ranked, failed):
-    """Append a short decomposition-findings summary to
-    docs/eda_findings_favorita.md: category counts, top/bottom 3 families,
+    """Write a short decomposition-findings summary to
+    docs/eda_findings_favorita.md (appended the first time, replaced in place
+    on later runs): category counts, top/bottom 3 families,
     and the sparse (>10% zero-sales days) list. The full per-family ratios
     already live in SUMMARY_CSV_PATH, so the Markdown stays a human-readable
     summary rather than repeating the table."""
@@ -139,7 +141,7 @@ def write_findings(ranked, failed):
     sparse = ranked[ranked['zero_sales_flagged']]
 
     lines = []
-    lines.append('## Time-Series Decomposition (`04_favorita_decomposition.py`)\n')
+    lines.append(f'{SECTION_HEADING}\n')
     lines.append(f'**Method:** STL decomposition with weekly period ({PERIOD} days)\n')
     lines.append(f'Full per-family ratios are in `{SUMMARY_CSV_PATH}`.\n')
 
@@ -168,10 +170,28 @@ def write_findings(ranked, failed):
 
     lines.append(f"**STL failures:** {'None' if not failed else ', '.join(failed)}\n")
 
-    with open(FINDINGS_PATH, 'a') as f:
-        f.write('\n'.join(lines) + '\n')
+    section = '\n'.join(lines) + '\n'
 
-    print(f"Appended decomposition findings to {FINDINGS_PATH}")
+    existing = ''
+    if os.path.exists(FINDINGS_PATH):
+        with open(FINDINGS_PATH) as f:
+            existing = f.read()
+
+    # Rerunning this script used to append a second copy of this section. If
+    # the heading is already in the doc, replace that section in place (up to
+    # the next '## ' heading, or the end of the file) so the doc keeps a single,
+    # up-to-date copy and any sections after it are left untouched.
+    start = existing.find(SECTION_HEADING)
+    if start == -1:
+        with open(FINDINGS_PATH, 'a') as f:
+            f.write(section)
+        print(f"Appended decomposition findings to {FINDINGS_PATH}")
+    else:
+        end = existing.find('\n## ', start + len(SECTION_HEADING))
+        end = len(existing) if end == -1 else end + 1
+        with open(FINDINGS_PATH, 'w') as f:
+            f.write(existing[:start] + section + existing[end:])
+        print(f"Replaced existing decomposition findings in {FINDINGS_PATH}")
 
 
 def export_summary_csv(ranked):
