@@ -2,7 +2,7 @@
 
 ## How to Get the Data
 
-This project uses two public datasets from Kaggle. **Each team member needs to download them individually.**
+This project uses two public datasets from Kaggle and one series from FRED. **Each team member needs to download them individually.**
 
 ### Dataset 1: Corporación Favorita Store Sales
 
@@ -27,6 +27,19 @@ You should have files like:
 3. Unzip it
 4. Move the CSV files to `data/raw/`
 
+### Dataset 3: US Effective Federal Funds Rate (FRED series DFF)
+
+1. Download: https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFF
+2. Save it as `data/raw/DFF.csv` (no need to unzip or rename columns)
+
+Or from the repo root:
+
+```bash
+curl -L -o data/raw/DFF.csv "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFF"
+```
+
+The team's copy was downloaded on 2026-09-27. FRED adds new days over time, but `clean_interest_rate()` only keeps 2013-01-01 to 2017-08-15, so a newer download gives the same cleaned output unless FRED revises past values.
+
 ### Folder Structure After Download
 
 Your `data/raw/` folder should look like this:
@@ -38,6 +51,7 @@ data/raw/
 ├── stores.csv
 ├── holidays_events.csv
 ├── transactions.csv
+├── DFF.csv
 └── [financial data CSVs]
 
 
@@ -80,3 +94,33 @@ python notebooks/02_data_cleaning.py
 This reads `data/raw/oil.csv` and writes `data/processed/oil_clean.csv`.
 
 The output has 1,688 rows (one per calendar day from 2013-01-01 to 2017-08-15), 3 columns, and is approximately 32 KB. See the "Oil Price" section of `DATA_DICTIONARY.md` for how missing prices are filled.
+
+### Interest Rate Data
+
+The same command also regenerates the cleaned interest-rate series:
+
+```bash
+python notebooks/02_data_cleaning.py
+```
+
+This reads `data/raw/DFF.csv` and writes `data/processed/interest_rate_clean.csv`.
+
+The output has 1,688 rows (one per calendar day from 2013-01-01 to 2017-08-15), 2 columns, and is approximately 26 KB. See the "Interest Rate" section of `DATA_DICTIONARY.md` for the series ID, source, and download date.
+
+### Macro Drivers Merged Data
+
+The merged sales + macro datasets depend on outputs from three scripts, so run them in this order:
+
+```bash
+python notebooks/02_data_cleaning.py         # oil_clean.csv, interest_rate_clean.csv
+python notebooks/03_favorita_trend_analysis.py   # favorita_family_daily_sales.csv
+python notebooks/05_macro_drivers_merge.py
+```
+
+Step 03 also regenerates the trend figures and its section of `docs/eda_findings_favorita.md`.
+
+This writes:
+- `data/processed/macro_drivers_merged.csv`: daily, 55,704 rows (33 families × 1,688 days), 8 columns, approximately 2.6 MB
+- `data/processed/macro_drivers_merged_monthly.csv`: monthly, 1,848 rows (33 families × 56 months), 9 columns, approximately 140 KB
+
+See the "Macro Drivers Merged" section of `DATA_DICTIONARY.md` for column definitions and the low-confidence and partial-month flags.

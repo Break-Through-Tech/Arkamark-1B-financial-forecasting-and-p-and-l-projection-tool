@@ -93,7 +93,70 @@
 
 **Joining to sales:** the output covers all 1,688 calendar days, while the sales panel has 1,684 dates (it has no rows for December 25 of 2013–2016). A join on `date` from sales therefore matches every sales date; the 4 Christmas oil rows simply have no sales counterpart.
 
-## Section 4: Derived Columns (to be created later)
+## Section 4: Interest Rate
+
+**Source file:** `data/raw/DFF.csv`
+**Series:** `DFF` — Federal Funds Effective Rate (daily, percent, not seasonally adjusted)
+**Source:** Federal Reserve Economic Data (FRED), Federal Reserve Bank of St. Louis; originally from the Board of Governors of the Federal Reserve System (H.15). Downloaded from https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFF
+**Download date:** 2026-09-27 (raw file covers 1954-07-01 to 2026-09-24, 26,384 rows)
+**Cleaned output:** `data/processed/interest_rate_clean.csv` (see `clean_interest_rate()` in `notebooks/02_data_cleaning.py`)
+**Grain:** one row per calendar date
+**Coverage:** 1,688 rows; 2013-01-01 to 2017-08-15 (the sales date range)
+
+| Column | Type | Description |
+|---|---|---|
+| `date` | date | Calendar date. Every day in the range has exactly one row. |
+| `dff` | float | Effective federal funds rate, in percent (e.g. `0.13` = 0.13%). Renamed from the raw `DFF` column, lowercased to match `dcoilwtico`. |
+
+**Why a US rate:** Ecuador has used the US dollar as its official currency since 2000, so US policy rates are the interest rates that actually apply there. DFF was chosen over FEDFUNDS (monthly only), DGS10 (business days only, would need filling) and DPRIME (changes only on Fed decisions) because it is published for every calendar day.
+
+**Cleaning performed:** none beyond trimming to the sales date range (26,384 → 1,688 rows). Every date in the range is present with a numeric value, so no filling was needed; `clean_interest_rate()` asserts this.
+
+**Known limitation:** the rate barely moves in this period — 0.06% to 1.16%, near zero until the Fed's first hike in December 2015 — so there is little variation for estimating a sales-to-interest-rate relationship.
+
+## Section 5: Macro Drivers Merged
+
+**Source files:** `data/processed/favorita_family_daily_sales.csv` (from `notebooks/03_favorita_trend_analysis.py`), `data/processed/oil_clean.csv`, `data/processed/interest_rate_clean.csv`
+**Cleaned outputs** (see `notebooks/05_macro_drivers_merge.py`):
+- `data/processed/macro_drivers_merged.csv` — daily; one row per (date, family); 55,704 rows (33 families × 1,688 days)
+- `data/processed/macro_drivers_merged_monthly.csv` — monthly; one row per (month, family); 1,848 rows (33 families × 56 months, 2013-01 to 2017-08)
+
+Sales are chain-wide totals per family (summed across all 54 stores). The 4 Dec-25 closure dates are zero-filled in the family daily sales, so they appear as zero-sales rows here.
+
+**Daily file columns:**
+
+| Column | Type | Description |
+|---|---|---|
+| `date` | date | Calendar date |
+| `family` | string | Product family (33 distinct values) |
+| `sales` | float | Chain-wide sales for that family on that date |
+| `dcoilwtico` | float | WTI oil price for that date, from `oil_clean.csv` (forward-filled on weekends/holidays) |
+| `dcoilwtico_filled_flag` | int (0/1) | `1` if the oil price was filled rather than observed that day |
+| `dff` | float | Effective federal funds rate (percent), from `interest_rate_clean.csv` |
+| `pre_launch_flag` | int (0/1) | `1` if the date is before the family's launch — its zero sales mean the product line wasn't stocked yet, not zero demand. A family whose first sale is in the first week of 2013 is treated as selling from the start (2013-01-01 is New Year's Day). 5,161 rows. |
+| `low_confidence_flag` | int (0/1) | Family-level; the same value on every row for a family. See below. |
+
+**Monthly file columns:**
+
+| Column | Type | Description |
+|---|---|---|
+| `month` | date | First day of the month |
+| `family` | string | Product family |
+| `sales` | float | Sum of daily sales in the month |
+| `dcoilwtico` | float | Mean oil price over **observed trading days only** (filled weekend/holiday prices excluded, so Friday's price isn't counted three times; matches how FRED builds its monthly average) |
+| `dff` | float | Mean rate over all calendar days in the month |
+| `days_in_data` | int | Number of days of data in the month |
+| `is_partial_month` | int (0/1) | `1` if the month has fewer days of data than calendar days. Only August 2017 (15 of 31 days, data ends 2017-08-15); its summed sales are about half a normal month, so don't read it as a sales drop. |
+| `pre_launch_flag` | int (0/1) | `1` if any day in the month is before the family's launch, so the monthly total understates a full month of selling (173 rows) |
+| `low_confidence_flag` | int (0/1) | Same family-level flag as the daily file |
+
+**`low_confidence_flag` method:** a family is flagged if its first chain-wide sale is on or after 2014-01-01 (late-introduced), **or** more than 50% of its days have zero sales (sparse; the same threshold as `03_favorita_trend_analysis.py`). 11 families are flagged: BABY CARE, BOOKS, CELEBRATION, HOME AND KITCHEN I, HOME AND KITCHEN II, HOME CARE, LADIESWEAR, MAGAZINES, PET SUPPLIES, PLAYERS AND ELECTRONICS, SCHOOL AND OFFICE SUPPLIES. Ten launched between 2014-01-01 and 2014-03-01; BOOKS launched on 2016-10-08 and is also the only family above the sparse threshold (83% zero days). These families have at most ~3.6 years of history (BOOKS ~10 months), so models and elasticities fit on them are less reliable. PRODUCE (first sale 2013-03-16) is deliberately not flagged: it is ~11% of all sales and only its first 74 days are missing, which `pre_launch_flag` already marks.
+
+**Known limitations:**
+- 10 of the 11 flagged families also have whole calendar months of exactly zero chain-wide sales after launch (February, April–June and August 2014, and for 8 of them January 2015 through March, April or May 2015). The gaps start and end on month boundaries across several families at once, so they look like data-recording gaps rather than zero demand. They are not flagged separately; the family-level `low_confidence_flag` covers them, and no unflagged family has a zero-sales month after launch.
+- No construction index is available for Ecuador, so the construction-index driver named in the project overview cannot be analyzed. Only oil and the interest rate are included.
+
+## Section 6: Derived Columns (to be created later)
 
 None yet. Per the project overview, building the margin structure is an
 October (Modeling) milestone task, not part of this September EDA work —

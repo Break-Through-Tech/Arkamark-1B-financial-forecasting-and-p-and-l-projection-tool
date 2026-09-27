@@ -243,6 +243,68 @@ def clean_oil():
     return df
 
 
+def clean_interest_rate():
+    """Cleans the daily US Effective Federal Funds Rate (FRED series DFF) so it
+    can be joined onto the Favorita sales data by date.
+
+    Ecuador has used the US dollar as its currency since 2000, so US policy
+    rates are the interest rates that actually apply there. DFF was chosen over
+    FEDFUNDS (monthly), DGS10 (business days only) and DPRIME (only moves with
+    Fed decisions) because it is published for every calendar day, weekends
+    included. Investigation found every date from 2013-01-01 to 2017-08-15 is
+    present with a numeric value, so no filling is needed -- this function
+    trims to the sales date range and asserts that coverage."""
+
+    input_path = f'{RAW_DIR}/DFF.csv'
+
+    # Checksum before and after so we can prove we never wrote back to the raw file.
+    with open(input_path, 'rb') as f:
+        checksum_before = hashlib.sha256(f.read()).hexdigest()
+
+    df = pd.read_csv(input_path)
+    rows_start = len(df)
+
+    assert list(df.columns) == ['observation_date', 'DFF'], "unexpected raw column set/order"
+    df = df.rename(columns={'observation_date': 'date', 'DFF': 'dff'})
+    df['date'] = pd.to_datetime(df['date'], errors='raise')
+    df['dff'] = pd.to_numeric(df['dff'], errors='raise')
+
+    # The full FRED download goes back to 1954 and grows as new days are
+    # published, so there's no fixed raw row count to assert here. The checks
+    # below are on the sales date range instead.
+    assert df['date'].is_unique, "duplicate dates found"
+    raw_span = f"{df['date'].min().date()} to {df['date'].max().date()}"
+
+    sales_dates = pd.date_range('2013-01-01', '2017-08-15', freq='D', name='date')
+    df = df[df['date'].isin(sales_dates)]
+    rows_outside_range = rows_start - len(df)
+
+    # Reindexing to the sales calendar would introduce NaNs for any absent date,
+    # which the assertion below would catch. None are expected.
+    df = df.set_index('date').reindex(sales_dates).reset_index()
+
+    assert df['dff'].isna().sum() == 0, "rate has missing values in the sales date range"
+    assert df['date'].is_unique, "more than one row per date"
+    assert len(df) == len(sales_dates) == 1_688, "row count doesn't match the sales calendar"
+    assert (df['dff'] >= 0).all(), "rate has negative values"
+    assert list(df.columns) == ['date', 'dff'], "unexpected output column set/order"
+
+    with open(input_path, 'rb') as f:
+        checksum_after = hashlib.sha256(f.read()).hexdigest()
+    assert checksum_before == checksum_after, "raw DFF.csv was modified during cleaning"
+
+    print(f"\n{'='*50}")
+    print("INTEREST RATE CLEANING SUMMARY")
+    print(f"{'='*50}")
+    print(f"Original rows: {rows_start} ({raw_span})")
+    print(f"Rows removed (outside 2013-01-01 to 2017-08-15): {rows_outside_range}")
+    print(f"Missing values handled: 0")
+    print(f"Rate range: {df['dff'].min():.2f}% to {df['dff'].max():.2f}%")
+    print(f"Final rows: {len(df)}")
+
+    return df
+
+
 if __name__ == "__main__":
     os.makedirs(PROCESSED_DIR, exist_ok=True)
 
@@ -257,3 +319,7 @@ if __name__ == "__main__":
     df_oil = clean_oil()
     df_oil.to_csv(f'{PROCESSED_DIR}/oil_clean.csv', index=False)
     print(f"\nSaved cleaned oil prices to {PROCESSED_DIR}/oil_clean.csv")
+
+    df_rate = clean_interest_rate()
+    df_rate.to_csv(f'{PROCESSED_DIR}/interest_rate_clean.csv', index=False)
+    print(f"\nSaved cleaned interest rate to {PROCESSED_DIR}/interest_rate_clean.csv")
