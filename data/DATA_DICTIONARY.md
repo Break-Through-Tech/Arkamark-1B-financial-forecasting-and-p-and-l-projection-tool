@@ -68,7 +68,32 @@
 
 **Known limitation:** this dataset has no sector/industry column, so identifying "comparable retail companies" for the margin-benchmarking work requires an external ticker list rather than filtering this file directly.
 
-## Section 3: Derived Columns (to be created later)
+## Section 3: Oil Price
+
+**Source file:** `data/raw/oil.csv`
+**Cleaned output:** `data/processed/oil_clean.csv` (see `clean_oil()` in `notebooks/02_data_cleaning.py`)
+**Grain:** one row per calendar date
+**Coverage:** 1,688 rows; 2013-01-01 to 2017-08-15 (the sales date range)
+**Units:** USD per barrel
+
+| Column | Type | Description |
+|---|---|---|
+| `date` | date | Calendar date. Every day in the range has exactly one row, weekends and holidays included. |
+| `dcoilwtico` | float | Daily WTI (West Texas Intermediate) crude oil price. Where no price was observed, this holds the most recent earlier observed price (see filling below). |
+| `dcoilwtico_filled_flag` | int (0/1) | New column added during cleaning. `1` means `dcoilwtico` was filled rather than observed on that date; `0` means it is the raw observed price. 525 rows (31.1%) are flagged. |
+
+**Raw file shape:** 1,218 rows, one per weekday from 2013-01-01 to 2017-08-31, no duplicate dates. Weekends are absent as rows, and 43 weekday rows (all inside the sales range) have a blank price. The blanks are all US market holidays — WTI is a US benchmark — e.g. New Year's Day, MLK Day, Presidents' Day, Good Friday, Memorial Day, Independence Day, Labor Day, Thanksgiving, and Christmas (including observed Monday/Friday dates). The first row, 2013-01-01, is one of them.
+
+**Cleaning performed** (raw → clean: 1,218 → 1,688 rows):
+- Dropped the 12 rows after 2017-08-15 (the `test.csv` period), so the series matches the sales date range.
+- Added a row for each of the 482 absent calendar dates (241 Saturdays, 241 Sundays).
+- Forward-filled the 524 missing prices (482 weekend rows + 42 holiday blanks) with the last observed price. No new price is set on a non-trading day, so the last traded price is the price in effect on that day.
+- Backfilled the one remaining blank, 2013-01-01, with the 2013-01-02 price (93.14), because it has no earlier price to forward-fill from. This was chosen over dropping the row so that every sales date has an oil price; it is a single holiday, and the row is still flagged as filled.
+- No observed prices were changed.
+
+**Joining to sales:** the output covers all 1,688 calendar days, while the sales panel has 1,684 dates (it has no rows for December 25 of 2013–2016). A join on `date` from sales therefore matches every sales date; the 4 Christmas oil rows simply have no sales counterpart.
+
+## Section 4: Derived Columns (to be created later)
 
 None yet. Per the project overview, building the margin structure is an
 October (Modeling) milestone task, not part of this September EDA work —

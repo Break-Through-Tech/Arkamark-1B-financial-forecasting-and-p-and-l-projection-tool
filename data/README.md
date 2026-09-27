@@ -68,3 +68,15 @@ python notebooks/02_data_cleaning.py
 This reads `data/raw/train.csv` and writes `data/processed/favorita_sales_clean.csv`.
 
 The output has 3,000,888 rows, 7 columns, and is approximately 122 MB.
+
+### Oil Price Data
+
+The same command also regenerates the cleaned oil price series:
+
+```bash
+python notebooks/02_data_cleaning.py
+```
+
+This reads `data/raw/oil.csv` and writes `data/processed/oil_clean.csv`.
+
+The output has 1,688 rows (one per calendar day from 2013-01-01 to 2017-08-15), 3 columns, and is approximately 32 KB. See the "Oil Price" section of `DATA_DICTIONARY.md` for how missing prices are filled.
