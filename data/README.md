@@ -140,3 +140,16 @@ This writes charts to `figures/macro/` (`overview_total.png`, `overview_families
 - `macro_lag_regressions.csv`: single-lag regressions for `TOTAL_CORE` and the 5 largest core families
 
 `TOTAL_CORE` is the total of the 21 families without recording gaps (86.5% of sales); see the "Macro Drivers Merged" known limitations in `DATA_DICTIONARY.md`.
+
+### Macro Driver Sensitivity
+
+After the macro driver analysis above, run:
+
+```bash
+python notebooks/07_macro_sensitivity.py
+```
+
+This reads `macro_lag_correlations.csv` and writes:
+- `data/processed/macro_sensitivity_classification.csv`: one row per (family, driver) with its sensitivity label, best lag, lag window, direction, and strength; 68 rows
+- `figures/macro/sensitivity_heatmap.png`: family × lag heatmap
+- `docs/eda_findings_macro.md`: classification table, heatmap, and lagged-feature recommendations (the script's section is replaced in place on reruns)
