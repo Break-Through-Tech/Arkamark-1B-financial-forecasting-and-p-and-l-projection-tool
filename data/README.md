@@ -2,7 +2,7 @@
 
 ## How to Get the Data
 
-This project uses two public datasets from Kaggle. **Each team member needs to download them individually.**
+This project uses two public datasets from Kaggle and one series from FRED. **Each team member needs to download them individually.**
 
 ### Dataset 1: Corporación Favorita Store Sales
 
@@ -27,6 +27,19 @@ You should have files like:
 3. Unzip it
 4. Move the CSV files to `data/raw/`
 
+### Dataset 3: US Effective Federal Funds Rate (FRED series DFF)
+
+1. Download: https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFF
+2. Save it as `data/raw/DFF.csv` (no need to unzip or rename columns)
+
+Or from the repo root:
+
+```bash
+curl -L -o data/raw/DFF.csv "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DFF"
+```
+
+The team's copy was downloaded on 2026-09-27. FRED adds new days over time, but `clean_interest_rate()` only keeps 2013-01-01 to 2017-08-15, so a newer download gives the same cleaned output unless FRED revises past values.
+
 ### Folder Structure After Download
 
 Your `data/raw/` folder should look like this:
@@ -38,6 +51,7 @@ data/raw/
 ├── stores.csv
 ├── holidays_events.csv
 ├── transactions.csv
+├── DFF.csv
 └── [financial data CSVs]
 
 
@@ -68,3 +82,74 @@ python notebooks/02_data_cleaning.py
 This reads `data/raw/train.csv` and writes `data/processed/favorita_sales_clean.csv`.
 
 The output has 3,000,888 rows, 7 columns, and is approximately 122 MB.
+
+### Oil Price Data
+
+The same command also regenerates the cleaned oil price series:
+
+```bash
+python notebooks/02_data_cleaning.py
+```
+
+This reads `data/raw/oil.csv` and writes `data/processed/oil_clean.csv`.
+
+The output has 1,688 rows (one per calendar day from 2013-01-01 to 2017-08-15), 3 columns, and is approximately 32 KB. See the "Oil Price" section of `DATA_DICTIONARY.md` for how missing prices are filled.
+
+### Interest Rate Data
+
+The same command also regenerates the cleaned interest-rate series:
+
+```bash
+python notebooks/02_data_cleaning.py
+```
+
+This reads `data/raw/DFF.csv` and writes `data/processed/interest_rate_clean.csv`.
+
+The output has 1,688 rows (one per calendar day from 2013-01-01 to 2017-08-15), 2 columns, and is approximately 26 KB. See the "Interest Rate" section of `DATA_DICTIONARY.md` for the series ID, source, and download date.
+
+### Macro Drivers Merged Data
+
+The merged sales + macro datasets depend on outputs from three scripts, so run them in this order:
+
+```bash
+python notebooks/02_data_cleaning.py         # oil_clean.csv, interest_rate_clean.csv
+python notebooks/03_favorita_trend_analysis.py   # favorita_family_daily_sales.csv
+python notebooks/05_macro_drivers_merge.py
+```
+
+Step 03 also regenerates the trend figures and its section of `docs/eda_findings_favorita.md`.
+
+This writes:
+- `data/processed/macro_drivers_merged.csv`: daily, 55,704 rows (33 families × 1,688 days), 8 columns, approximately 2.6 MB
+- `data/processed/macro_drivers_merged_monthly.csv`: monthly, 1,848 rows (33 families × 56 months), 9 columns, approximately 140 KB
+
+See the "Macro Drivers Merged" section of `DATA_DICTIONARY.md` for column definitions and the low-confidence and partial-month flags.
+
+### Macro Driver Analysis
+
+The macro driver analysis reads `macro_drivers_merged_monthly.csv`, so run the steps above first, then:
+
+```bash
+python notebooks/06_macro_driver_analysis.py
+```
+
+This writes charts to `figures/macro/` (`overview_total.png`, `overview_families.png`, `ccf_differenced.png`, `ccf_stl_residual.png`, `correlation_by_transform.png`) and these tables to `data/processed/`:
+- `macro_lag_correlations.csv`: one row per (family, driver, transform, lag 0–6 months) with correlation, p-value, FDR q-value, and observation count; 952 rows
+- `macro_correlation_comparison.csv`: same-month correlation per (family, driver) under levels, differenced, year-over-year, and STL-residual transforms; 68 rows
+- `macro_adf_tests.csv`: ADF stationarity test per series and transform
+- `macro_lag_regressions.csv`: single-lag regressions for `TOTAL_CORE` and the 5 largest core families
+
+`TOTAL_CORE` is the total of the 21 families without recording gaps (86.5% of sales); see the "Macro Drivers Merged" known limitations in `DATA_DICTIONARY.md`.
+
+### Macro Driver Sensitivity
+
+After the macro driver analysis above, run:
+
+```bash
+python notebooks/07_macro_sensitivity.py
+```
+
+This reads `macro_lag_correlations.csv` and writes:
+- `data/processed/macro_sensitivity_classification.csv`: one row per (family, driver) with its sensitivity label, best lag, lag window, direction, and strength; 68 rows
+- `figures/macro/sensitivity_heatmap.png`: family × lag heatmap
+- `docs/eda_findings_macro.md`: classification table, heatmap, and lagged-feature recommendations (the script's section is replaced in place on reruns)

@@ -8,6 +8,7 @@ PROCESSED_PATH = 'data/processed/favorita_sales_clean.csv'
 FIGURES_DIR = 'figures/trend'
 FINDINGS_PATH = 'docs/eda_findings_favorita.md'
 FAMILY_DAILY_CSV_PATH = 'data/processed/favorita_family_daily_sales.csv'
+SECTION_HEADING = '## Ticket #19: Trend Analysis (`03_favorita_trend_analysis.py`)'
 
 ROLLING_SHORT = 7   # weekly smoothing, kills day-of-week noise
 ROLLING_LONG = 28   # ~monthly smoothing, primary trend line
@@ -170,8 +171,9 @@ def compute_findings(family_series):
 
 
 def write_findings(findings, family_series):
-    """Write to docs/eda_findings_favorita.md,
-    listing which families are trending up, down, stable, or sparse."""
+    """Write to docs/eda_findings_favorita.md (appended the first time,
+    replaced in place on later runs), listing which families are trending
+    up, down, stable, or sparse."""
     os.makedirs(os.path.dirname(FINDINGS_PATH), exist_ok=True)
 
     # Families that started from a zero sales base don't have a real percent
@@ -189,7 +191,7 @@ def write_findings(findings, family_series):
     sparse = findings[findings['is_sparse']].sort_values('pct_zero_days', ascending=False)
 
     lines = []
-    lines.append('## Ticket #19: Trend Analysis (`03_favorita_trend_analysis.py`)\n')
+    lines.append(f'{SECTION_HEADING}\n')
     lines.append(
         'Daily sales aggregated by family, summed across all 54 stores, over '
         f'{len(family_series)} days ({family_series.index.min().date()} to '
@@ -243,8 +245,9 @@ def write_findings(findings, family_series):
     )
     lines.append(
         '- Annual cycle: several families show a same-direction bump in their 28-day rolling mean '
-        'recurring around the same time of year across multiple years (visible in the overview grid); '
-        'which families and which months is deferred to the seasonal-strength analysis in Ticket #20.'
+        'recurring around the same time of year across multiple years (visible in the overview grid). '
+        'Annual patterns are visible in some families but were not formally tested in this analysis '
+        'and can be explored later if needed.'
     )
     lines.append('')
 
@@ -270,10 +273,28 @@ def write_findings(findings, family_series):
         )
     lines.append('')
 
-    with open(FINDINGS_PATH, 'a') as f:
-        f.write('\n'.join(lines) + '\n')
+    section = '\n'.join(lines) + '\n'
 
-    print(f"Appended trend-analysis findings to {FINDINGS_PATH}")
+    existing = ''
+    if os.path.exists(FINDINGS_PATH):
+        with open(FINDINGS_PATH) as f:
+            existing = f.read()
+
+    # Rerunning this script used to append a second copy of this section. If
+    # the heading is already in the doc, replace that section in place (up to
+    # the next '## ' heading, or the end of the file) so the doc keeps a single,
+    # up-to-date copy and any sections after it are left untouched.
+    start = existing.find(SECTION_HEADING)
+    if start == -1:
+        with open(FINDINGS_PATH, 'a') as f:
+            f.write(section)
+        print(f"Appended trend-analysis findings to {FINDINGS_PATH}")
+    else:
+        end = existing.find('\n## ', start + len(SECTION_HEADING))
+        end = len(existing) if end == -1 else end + 1
+        with open(FINDINGS_PATH, 'w') as f:
+            f.write(existing[:start] + section + existing[end:])
+        print(f"Replaced existing trend-analysis findings in {FINDINGS_PATH}")
 
 
 if __name__ == "__main__":
