@@ -124,3 +124,32 @@ This writes:
 - `data/processed/macro_drivers_merged_monthly.csv`: monthly, 1,848 rows (33 families × 56 months), 9 columns, approximately 140 KB
 
 See the "Macro Drivers Merged" section of `DATA_DICTIONARY.md` for column definitions and the low-confidence and partial-month flags.
+
+### Macro Driver Analysis
+
+The macro driver analysis reads `macro_drivers_merged_monthly.csv`, so run the steps above first, then:
+
+```bash
+python notebooks/06_macro_driver_analysis.py
+```
+
+This writes charts to `figures/macro/` (`overview_total.png`, `overview_families.png`, `ccf_differenced.png`, `ccf_stl_residual.png`, `correlation_by_transform.png`) and these tables to `data/processed/`:
+- `macro_lag_correlations.csv`: one row per (family, driver, transform, lag 0–6 months) with correlation, p-value, FDR q-value, and observation count; 952 rows
+- `macro_correlation_comparison.csv`: same-month correlation per (family, driver) under levels, differenced, year-over-year, and STL-residual transforms; 68 rows
+- `macro_adf_tests.csv`: ADF stationarity test per series and transform
+- `macro_lag_regressions.csv`: single-lag regressions for `TOTAL_CORE` and the 5 largest core families
+
+`TOTAL_CORE` is the total of the 21 families without recording gaps (86.5% of sales); see the "Macro Drivers Merged" known limitations in `DATA_DICTIONARY.md`.
+
+### Macro Driver Sensitivity
+
+After the macro driver analysis above, run:
+
+```bash
+python notebooks/07_macro_sensitivity.py
+```
+
+This reads `macro_lag_correlations.csv` and writes:
+- `data/processed/macro_sensitivity_classification.csv`: one row per (family, driver) with its sensitivity label, best lag, lag window, direction, and strength; 68 rows
+- `figures/macro/sensitivity_heatmap.png`: family × lag heatmap
+- `docs/eda_findings_macro.md`: classification table, heatmap, and lagged-feature recommendations (the script's section is replaced in place on reruns)
