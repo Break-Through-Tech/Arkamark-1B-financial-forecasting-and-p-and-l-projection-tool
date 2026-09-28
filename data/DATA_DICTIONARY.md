@@ -154,6 +154,7 @@ Sales are chain-wide totals per family (summed across all 54 stores). The 4 Dec-
 
 **Known limitations:**
 - 10 of the 11 flagged families also have whole calendar months of exactly zero chain-wide sales after launch (February, April–June and August 2014, and for 8 of them January 2015 through March, April or May 2015). The gaps start and end on month boundaries across several families at once, so they look like data-recording gaps rather than zero demand. They are not flagged separately; the family-level `low_confidence_flag` covers them, and no unflagged family has a zero-sales month after launch.
+- The same gap months are **near-empty, not zero, for PRODUCE**: ~7k per month against ~3.4M in a normal month, plus most of 2013 after its first sale. Because these aren't exact zeros, neither flag catches them, and they pull the all-family monthly total down ~35% in each gap month. `notebooks/06_macro_driver_analysis.py` detects them (a month where 5+ families fall below 10% of their own recent median) and uses a core-family total that excludes PRODUCE and the low-confidence families. Anything else that sums all families across 2013–2015 should do the same.
 - No construction index is available for Ecuador, so the construction-index driver named in the project overview cannot be analyzed. Only oil and the interest rate are included.
 
 ## Section 6: Derived Columns (to be created later)
